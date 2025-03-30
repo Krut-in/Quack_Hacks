@@ -1,105 +1,281 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+  Keyboard,
+  TouchableWithoutFeedback,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
+
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { app } from "../firebaseConfig.js";
+
+const auth = getAuth(app);
 
 const SignInScreen = ({ navigation }) => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [emailError, setEmailError] = useState(false);
+  const [passwordError, setPasswordError] = useState(false);
+
+  const handleSignIn = async () => {
+    const isEmailEmpty = !email.trim();
+    const isPasswordEmpty = !password.trim();
+
+    setEmailError(isEmailEmpty);
+    setPasswordError(isPasswordEmpty);
+
+    if (isEmailEmpty || isPasswordEmpty) {
+      Vibration.vibrate(500);
+      setError("Please fill in all required fields");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    useEffect(() => {
+      if (email.length > 0) setEmailError(false);
+    }, [email]);
+
+    useEffect(() => {
+      if (password.length > 0) setPasswordError(false);
+    }, [password]);
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // Successful login
+      navigation.navigate("Options");
+      // navigation.navigate("Profile");
+    } catch (error) {
+      Vibration.vibrate(500);
+      handleAuthError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAuthError = error => {
+    switch (error.code) {
+      case "auth/user-not-found":
+        setError("No account found with this email");
+        break;
+      case "auth/wrong-password":
+        setError("Incorrect password");
+        break;
+      case "auth/invalid-email":
+        setError("Invalid email format");
+        break;
+      case "auth/too-many-requests":
+        setError("Too many attempts. Try again later");
+        break;
+      default:
+        setError("Login failed. Please try again");
+        console.error("Login error:", error);
+    }
+  };
 
   return (
-    <View style={styles.container}>
-      {/* Speech Bubble and Duck */}
-      <View style={styles.speechBubble}>
-        <Text style={styles.speechText}>
-          Welcome to the world of making healthy choices. {"\n"}Let’s get started...
-        </Text>
-      </View>
-      <Image source={require("../assets/duck_img.png")} style={styles.duckImage} />
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+    >
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={styles.container}>
+            {/* Speech Bubble and Ducks */}
+            <View style={styles.speechBubble}>
+              <Text style={styles.speechText}>
+                Welcome to the world of making healthy choices{"\n"}
+                Let's get started...
+              </Text>
+            </View>
 
-      {/* Input Fields */}
-      <TextInput
-        style={styles.input}
-        placeholder="Username"
-        placeholderTextColor="#555"
-        value={username}
-        onChangeText={setUsername}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        placeholderTextColor="#555"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
+            <Image
+              source={require("../assets/duck_img.png")}
+              style={styles.duckImage}
+            />
+            <Image
+              source={require("../assets/duck_img.png")}
+              style={[styles.duckImage, styles.leftDuck]}
+            />
 
-      {/* Signup Section */}
-      <Text style={styles.signupText}>Don’t have an account?</Text>
-      <TouchableOpacity style={styles.signupButton} onPress={() => navigation.navigate("Profile")}>
-        <Text style={styles.signupButtonText}>Sign In</Text>
-      </TouchableOpacity>
-    </View>
+            {/* Input Section */}
+            <View style={styles.formContainer}>
+              <TextInput
+                placeholder="Email"
+                placeholderTextColor="#666"
+                style={[styles.input, emailError && styles.errorInput]}
+                onFocus={() => setEmailError(false)}
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+              <TextInput
+                placeholder="Password"
+                placeholderTextColor="#666"
+                style={[styles.input, passwordError && styles.errorInput]}
+                onFocus={() => setPasswordError(false)}
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+              />
+
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            </View>
+
+            {/* Action Buttons */}
+            <TouchableOpacity
+              style={[styles.signInButton, loading && styles.disabledButton]}
+              onPress={handleSignIn}
+              disabled={loading}
+            >
+              <Text style={styles.signInButtonText}>
+                {loading ? "Signing In..." : "Sign In"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.createAccountButton}
+              onPress={() => navigation.navigate("SignUp")}
+            >
+              <Text style={styles.createAccountButtonText}>
+                New here? Create Account
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableWithoutFeedback>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: "#E6F4D7", 
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
+    flexGrow: 1,
+    backgroundColor: "#E6F4D7",
+    padding: 25,
+    paddingTop: 100,
+  },
+  errorInput: {
+    borderColor: "#FF4444",
+    backgroundColor: "#FFF0F0",
+  },
+  errorText: {
+    color: "#FF4444",
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: "center",
+  },
+  disabledButton: {
+    opacity: 0.7,
   },
   speechBubble: {
     backgroundColor: "white",
-    padding: 15,
+    padding: 20,
     borderRadius: 20,
-    position: "absolute",
-    top: 80,
-    left: 40,
-    right: 40,
+    marginBottom: 120,
     shadowColor: "#000",
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   speechText: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#4A7C59",
     textAlign: "center",
+    lineHeight: 24,
   },
   duckImage: {
-    width: 80,
-    height: 80,
+    width: 100,
+    height: 100,
     position: "absolute",
-    top: 140,
-    right: 50,
+    top: 160,
+    right: 30,
+    transform: [{ rotate: "30deg" }],
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  leftDuck: {
+    left: 30,
+    transform: [{ rotate: "-30deg" }, { scaleX: -1 }],
+  },
+  formContainer: {
+    width: "100%",
+    backgroundColor: "white",
+    borderRadius: 15,
+    padding: 20,
+    marginBottom: 25,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
   },
   input: {
-    width: "90%",
-    height: 40,
-    backgroundColor: "white",
-    marginVertical: 10,
-    borderRadius: 5,
-    paddingLeft: 10,
+    backgroundColor: "#FFF",
+    padding: 14,
+    marginVertical: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#999",
+    borderColor: "#DDD",
+    fontSize: 16,
+    color: "#333",
   },
-  signupText: {
-    marginTop: 10,
-    fontSize: 14,
-    color: "#555",
-  },
-  signupButton: {
+  signInButton: {
     backgroundColor: "#6D9F60",
-    paddingVertical: 10,
-    paddingHorizontal: 30,
-    borderRadius: 20,
-    marginTop: 10,
+    padding: 16,
+    borderRadius: 12,
+    marginVertical: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  signupButtonText: {
+  signInButtonText: {
     color: "white",
     fontWeight: "bold",
+    fontSize: 18,
+    textAlign: "center",
+  },
+  createAccountButton: {
+    padding: 14,
+    marginTop: 15,
+  },
+  createAccountButtonText: {
+    color: "#6D9F60",
+    fontWeight: "600",
+    textAlign: "center",
     fontSize: 16,
+    textDecorationLine: "underline",
+  },
+  // Update error text style
+  errorText: {
+    color: "#FF4444",
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: "center",
+    fontWeight: "600", // Added
+    backgroundColor: "#FFF0F0", // Added
+    padding: 8, // Added
+    borderRadius: 8, // Added
   },
 });
 
