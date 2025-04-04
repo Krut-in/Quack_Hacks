@@ -18,8 +18,7 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator>
-        {/* <Stack.Screen name="Auth" component={AuthScreen} /> */}
-        <Stack.Screen name="Welcome to nutrAI!" component={AuthScreen} />
+        <Stack.Screen name="AuthScreen" component={AuthScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="OrderHistory" component={OrderHistory} />

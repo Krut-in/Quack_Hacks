@@ -11,6 +11,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  Vibration
 } from "react-native";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 import { getFirestore, doc, setDoc } from "firebase/firestore";
@@ -41,8 +42,6 @@ const SignUpScreen = ({ navigation }) => {
   const handleSignUp = async () => {
     setLoading(true);
     setError("");
-
-    // Validation checks
 
     // Validation checks
     if (!Object.values(formData).every(field => field.trim())) {
@@ -126,7 +125,7 @@ const SignUpScreen = ({ navigation }) => {
       await setDoc(doc(db, "users", userCredential.user.uid), userData);
       console.log("Data gooed");
 
-      navigation.navigate("Profile");
+      navigation.navigate("AuthScreen");
     } catch (error) {
       Vibration.vibrate(500);
       // handleSignupError(error);
@@ -288,7 +287,7 @@ const SignUpScreen = ({ navigation }) => {
               style={styles.signUpButton}
               onPress={handleSignUp}
             >
-              <Text style={styles.signUpButtonText}>Create Account</Text>
+              <Text style={styles.signUpButtonText}>{loading ? "Creating..." : "Create Account"}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Image, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, Image, TouchableOpacity, StyleSheet, Vibration, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import axios from 'axios';
+
 
 const InputScreen = () => {
   const navigation = useNavigation();
-  const [foodInput, setFoodInput] = useState('');
+  const [foodEntries, setFoodEntries] = useState([{ food: '', source: '' }]);
+  const [error, setError] = useState("");
 
-  // User details
+  
   const userDetails = {
     height: "6'1\"",
     weight: "75 kg",
@@ -15,93 +16,204 @@ const InputScreen = () => {
     gender: "male"
   };
 
-  let fakeOrders = {
-    "uber-eats": [
-      { id: 1, restaurant: "McDonald's", items: ["Big Mac", "Fries", "Coke"], total: 12.99, date: "2025-03-01" },
-      { id: 2, restaurant: "KFC", items: ["Chicken Bucket", "Biscuits"], total: 15.49, date: "2025-03-05" },
-      { id: 3, restaurant: "Starbucks", items: ["Caramel Macchiato", "Banana Bread"], total: 8.99, date: "2025-03-10" },
-      { id: 4, restaurant: "Taco Bell", items: ["Crunchwrap Supreme", "Nachos"], total: 9.99, date: "2025-03-12" },
-      { id: 5, restaurant: "Panda Express", items: ["Orange Chicken", "Fried Rice"], total: 10.49, date: "2025-03-15" },
-    ],
+  const handleAddEntry = () => {
+    setFoodEntries([...foodEntries, { food: '', source: '' }]);
   };
 
+  const handleRemoveEntry = (index) => {
+    if (foodEntries.length > 1) {
+      setFoodEntries(foodEntries.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleChange = (index, field, value) => {
+    const updatedEntries = [...foodEntries];
+    updatedEntries[index][field] = value;
+    setFoodEntries(updatedEntries);
+  };
+
+  // const handleSubmit = async () => {
+  //   setError("");
+
+  //   // Validation: Ensure all food items and sources are filled
+  //   if (foodEntries.some(entry => !entry.food.trim() || !entry.source.trim())) {
+  //     Vibration.vibrate(500);
+  //     setError("Please fill in all required fields.");
+  //     return;
+  //   }
+
+  //   try {
+  //     const response = await fetch('http://localhost:3001/manual-nutrition', {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({ 
+  //         prompt: `Based on the food entries: ${JSON.stringify(foodEntries)}, user details (height: ${userDetails.height}, weight: ${userDetails.weight}, age: ${userDetails.age}, gender: ${userDetails.gender}), how much more protein, carbs, fiber, fat, vitamins, and minerals does the person need?
+  //         Return only the JSON array without any additional text or markdown. 
+  //         Response should be similar to - [{"nutrient": "protein", "amount_needed": 100}, {"nutrient": "carbs", "amount_needed": 200}, {"nutrient": "fiber", "amount_needed": 300}, {"nutrient": "fat", "amount_needed": 400}, {"nutrient": "vitamins", "amount_needed": 500}, {"nutrient": "minerals", "amount_needed": 600}],
+  //         If it is not a valid food item, please return 'not_found'.`,
+  //       })
+  //     });
+
+  //     const data = await response.json();
+  //     let nutritionData;
+  //     try {
+  //       if (data.responseText === "not_found") {
+  //         setError("One or more food items not found.");
+  //         return;
+  //       }
+        
+  //       nutritionData = JSON.parse(data.responseText);
+  //     } catch (error) {
+  //       console.error("Error parsing JSON:", error);
+  //       Alert.alert("Error", "Invalid response format.");
+  //       return;
+  //     }
+  //     navigation.navigate('ManualResult', { nutritionData });
+  //   } catch (error) {
+  //     console.error(error);
+  //     setError("Failed to fetch dietary recommendations.");
+  //   }
+  // };
+
   const handleSubmit = async () => {
-    if (!foodInput.trim()) {
-      Alert.alert('Error', 'Please enter a valid food item.');
+    setError("");
+  
+    if (foodEntries.some(entry => !entry.food.trim() || !entry.source.trim())) {
+      Vibration.vibrate(500);
+      setError("Please fill in all required fields.");
       return;
     }
   
     try {
-      fakeOrders = JSON.stringify(fakeOrders); // Convert fake orders to JSON string
+      const accessToken = await getFatSecretAccessToken(); // Fetch or cache access token
+      let nutritionData = [];
   
-      const response = await fetch('http://localhost:3001/manual-nutrition', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          prompt: `Based on the food: "${foodInput}", and order history ${fakeOrders} user details (height: ${userDetails.height}, weight: ${userDetails.weight}, age: ${userDetails.age}, gender: ${userDetails.gender}), how much more protein, carbs, fiber, fat, vitamins, and minerals does the person need to fulfill his daily dietary requirements? We do not have any other information. Please give your answer with whatever we gave you. Assume things if not given. Return only the JSON array without any additional text or markdown.`
-        })
-      });
+      for (const entry of foodEntries) {
+        // Step 1: Search for food item
+        const searchResponse = await fetch(`https://platform.fatsecret.com/rest/server.api?method=foods.search&search_expression=${encodeURIComponent(entry.food)}&format=json`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
   
-      const data = await response.json();
+        const searchData = await searchResponse.json();
+        if (!searchData.foods || !searchData.foods.food) {
+          setError(`Food not found: ${entry.food}`);
+          return;
+        }
   
-      // Ensure data is properly parsed
-      let nutritionData;
-      try {
-        nutritionData = JSON.parse(data.responseText); // Parse JSON if it's returned as a string
-      } catch (error) {
-        console.error("Error parsing JSON:", error);
-        Alert.alert("Error", "Invalid response format.");
-        return;
+        const foodId = searchData.foods.food[0].food_id;
+  
+        // Step 2: Get detailed nutrition info
+        const detailsResponse = await fetch(`https://platform.fatsecret.com/rest/server.api?method=food.get.v2&food_id=${foodId}&format=json`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+  
+        const detailsData = await detailsResponse.json();
+        if (!detailsData.food) {
+          setError(`Could not fetch details for: ${entry.food}`);
+          return;
+        }
+  
+        const nutrients = detailsData.food.servings.serving; // Assuming first serving
+        nutritionData.push({
+          food: entry.food,
+          calories: nutrients.calories,
+          protein: nutrients.protein,
+          carbs: nutrients.carbohydrate,
+          fat: nutrients.fat,
+          fiber: nutrients.fiber,
+        });
       }
   
-      // Navigate to ManualResult screen with parsed data
+      // Navigate to results screen with fetched data
       navigation.navigate('ManualResult', { nutritionData });
   
     } catch (error) {
       console.error(error);
-      Alert.alert('Error', 'Failed to fetch dietary recommendations.');
+      setError("Failed to fetch dietary recommendations.");
     }
   };
   
-
+  const getFatSecretAccessToken = async () => {
+    
+    const clientId = "58300473be5d49f48a5e1ad11a7a0239";
+    const clientSecret = "be92c1ddd3634b3bbe5b612fafba5a0a";
+  
+    const authString = btoa(`${clientId}:${clientSecret}`);
+  
+    const response = await fetch('https://oauth.fatsecret.com/connect/token', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${authString}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: 'grant_type=client_credentials&scope=basic'
+    });
+  
+    const data = await response.json();
+    return data.access_token;
+  };
+  
   return (
-    <View style={styles.container}>
-      {/* Back Button */}
+    <ScrollView contentContainerStyle={styles.container}>
       <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
         <Text style={styles.backText}>{'< Back'}</Text>
       </TouchableOpacity>
 
-            {/* Images Side by Side */}
-            <View style={styles.imageContainer}>
+      <View style={styles.imageContainer}>
         <Image source={require('../assets/duck_img.png')} style={styles.image} />
         <Image source={require('../assets/manual_img2.png')} style={styles.image} />
       </View>
 
-      {/* Instruction Text */}
       <Text style={styles.instructionText}>
-        Please enter proper names with restaurant/home cooked (e.g., bean burrito from Taco Bell/tomato soup homecooked, not just burrito or soup)
+        Enter multiple food items with sources (e.g., "Bean burrito from Taco Bell").
       </Text>
 
-      {/* Text Input */}
-      <TextInput
-        style={styles.input}
-        placeholder="Enter your food item..."
-        placeholderTextColor="#436c1c"
-        value={foodInput}
-        onChangeText={setFoodInput}
-      />
+      {foodEntries.map((entry, index) => (
+        <View key={index} style={styles.entryContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter food item..."
+            placeholderTextColor="#436c1c"
+            value={entry.food}
+            onChangeText={(text) => handleChange(index, 'food', text)}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Restaurant/Homecooked..."
+            placeholderTextColor="#436c1c"
+            value={entry.source}
+            onChangeText={(text) => handleChange(index, 'source', text)}
+          />
+          {foodEntries.length > 1 && (
+            <TouchableOpacity style={styles.removeButton} onPress={() => handleRemoveEntry(index)}>
+              <Text style={styles.removeButtonText}>❌</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ))}
 
-      {/* Submit Button */}
+      <TouchableOpacity style={styles.addButton} onPress={handleAddEntry}>
+        <Text style={styles.addButtonText}>+ Add Another</Text>
+      </TouchableOpacity>
+
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
       <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
         <Text style={styles.submitButtonText}>SUBMIT</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: '#e1edcd',
     padding: 20,
     alignItems: 'center',
@@ -123,6 +235,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
+  entryContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   input: {
     width: '90%',
     height: 50,
@@ -133,6 +250,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#ffffff',
     color: '#436c1c',
+    marginBottom: 10,
+  },
+  removeButton: {
+    position: 'absolute',
+    right: 20,
+    top: 10,
+  },
+  removeButtonText: {
+    fontSize: 18,
+    color: 'red',
+  },
+  addButton: {
+    marginTop: 10,
+    backgroundColor: '#436c1c',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  addButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   submitButton: {
     marginTop: 20,
@@ -157,6 +296,16 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     borderRadius: 10,
   },
+  errorText: {
+    color: "#FF4444",
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: "center",
+    fontWeight: "600", 
+    backgroundColor: "#FFF0F0", 
+    padding: 8,
+    borderRadius: 8, 
+  }
 });
 
 export default InputScreen;

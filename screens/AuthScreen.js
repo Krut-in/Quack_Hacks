@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,12 +11,14 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Vibration
 } from "react-native";
 
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { app } from "../firebaseConfig.js";
 
 const auth = getAuth(app);
+
 
 const SignInScreen = ({ navigation }) => {
   const [email, setEmail] = useState("");
@@ -25,6 +27,14 @@ const SignInScreen = ({ navigation }) => {
   const [error, setError] = useState("");
   const [emailError, setEmailError] = useState(false);
   const [passwordError, setPasswordError] = useState(false);
+
+  useEffect(() => {
+    if (email.length > 0) setEmailError(false);
+  }, [email]);
+
+  useEffect(() => {
+    if (password.length > 0) setPasswordError(false);
+  }, [password]);
 
   const handleSignIn = async () => {
     const isEmailEmpty = !email.trim();
@@ -41,14 +51,6 @@ const SignInScreen = ({ navigation }) => {
 
     setLoading(true);
     setError("");
-
-    useEffect(() => {
-      if (email.length > 0) setEmailError(false);
-    }, [email]);
-
-    useEffect(() => {
-      if (password.length > 0) setPasswordError(false);
-    }, [password]);
 
     try {
       await signInWithEmailAndPassword(auth, email, password);

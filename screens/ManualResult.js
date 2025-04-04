@@ -5,7 +5,24 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 const ManualResult = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { nutritionData } = route.params; // Get data passed from InputScreen
+  const nutritionData = route.params.nutritionData; // Get data passed from InputScreen
+
+  const renderNutrient = ({ item }) => (
+    <View style={styles.card}>
+      <Text style={styles.nutrient}>{item.label}</Text>
+      <Text style={styles.amount}>{item.value} {item.unit}</Text>
+    </View>
+  );
+
+  // Transform the object keys into an array for rendering
+  const formattedData = nutritionData.map((item) => [
+    { label: 'Food', value: item.food, unit: '' },
+    { label: 'Calories', value: item.calories, unit: 'kcal' },
+    { label: 'Protein', value: item.protein, unit: 'g' },
+    { label: 'Carbs', value: item.carbs, unit: 'g' },
+    { label: 'Fat', value: item.fat, unit: 'g' },
+    { label: 'Fiber', value: item.fiber, unit: 'g' },
+  ]).flat(); // Flatten array for FlatList
 
   return (
     <View style={styles.container}>
@@ -13,17 +30,12 @@ const ManualResult = () => {
         <Text style={styles.backText}>{'< Back'}</Text>
       </TouchableOpacity>
 
-      <Text style={styles.header}>Your Nutritional Needs</Text>
+      <Text style={styles.header}>Nutrition Breakdown</Text>
 
       <FlatList
-        data={nutritionData}
-        keyExtractor={(item) => item.nutrient}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.nutrient}>{item.nutrient.toUpperCase()}</Text>
-            <Text style={styles.amount}>{item.amount_needed} grams</Text>
-          </View>
-        )}
+        data={formattedData}
+        keyExtractor={(item, index) => index.toString()}
+        renderItem={renderNutrient}
       />
     </View>
   );
@@ -57,13 +69,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 15,
     marginVertical: 8,
-    width: '90%',
     borderRadius: 10,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 5,
+    width: '90%',
   },
   nutrient: {
     fontSize: 18,

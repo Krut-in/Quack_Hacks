@@ -7,13 +7,27 @@ const CameraScreen = () => {
   const [photo, setPhoto] = useState(null);
   const navigation = useNavigation();
 
-  const openCamera = () => {
-    launchCamera({ mediaType: "photo", saveToPhotos: true }, (response) => {
-      if (response.assets && response.assets.length > 0) {
+  const openCamera = async () => {
+    const options = {
+      mediaType: "photo",
+      saveToPhotos: true,
+      includeBase64: false,
+      cameraType: "back",
+    };
+    try {
+      const response = await launchCamera(options);
+      if (response.didCancel) {
+        console.log("User cancelled camera");
+      } else if (response.errorCode) {
+        console.error("Camera Error: ", response.errorMessage);
+      } else if (response.assets && response.assets.length > 0) {
         setPhoto(response.assets[0]);
       }
-    });
+    } catch (e) {
+      console.error("Error opening camera: ", e);
+    }
   };
+  
 
   const handleSubmit = async () => {
     if (!photo) return;
