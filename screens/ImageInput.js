@@ -1,112 +1,104 @@
 import React, { useState } from "react";
-import { View, Button, Image, StyleSheet, TouchableOpacity, Text } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { launchCamera } from "react-native-image-picker";
+import { View, Button, Image, StyleSheet, Alert, ActivityIndicator, Text } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
 
-const CameraScreen = () => {
+const TestGallery = () => {
   const [photo, setPhoto] = useState(null);
-  const navigation = useNavigation();
+  const [loading, setLoading] = useState(false);
+  const [responseMessage, setResponseMessage] = useState("");
 
-  const openCamera = async () => {
-    const options = {
-      mediaType: "photo",
-      saveToPhotos: true,
-      includeBase64: false,
-      cameraType: "back",
-    };
-    try {
-      const response = await launchCamera(options);
-      if (response.didCancel) {
-        console.log("User cancelled camera");
-      } else if (response.errorCode) {
-        console.error("Camera Error: ", response.errorMessage);
-      } else if (response.assets && response.assets.length > 0) {
-        setPhoto(response.assets[0]);
-      }
-    } catch (e) {
-      console.error("Error opening camera: ", e);
+  const openGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission Required", "We need access to your photo library to proceed.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setPhoto(result.assets[0]);
     }
   };
-  
 
-  const handleSubmit = async () => {
-    if (!photo) return;
+  const openCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission Required", "We need access to your camera to proceed.");
+      return;
+    }
 
-    const prompt = "Extract details from this food image.";
-    const formData = new FormData();
-    formData.append("image", {
-      uri: photo.uri,
-      name: "photo.jpg",
-      type: "image/jpeg",
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 1,
     });
-    formData.append("prompt", prompt);
+
+    if (!result.canceled) {
+      setPhoto(result.assets[0]);
+    }
+  };
+
+  const sendImageToGPT = async () => {
+    if (!photo) {
+      Alert.alert("No Image", "Please upload or capture an image first.");
+      return;
+    }
+
+    setLoading(true);
 
     try {
-      const response = await fetch("YOUR_BACKEND_API", {
-        method: "POST",
-        body: formData,
-        headers: { "Content-Type": "multipart/form-data" },
+      // Read the image file and encode it in Base64
+      const base64Image = await FileSystem.readAsStringAsync(photo.uri, {
+        encoding: FileSystem.EncodingType.Base64,
       });
-      const result = await response.json();
-      console.log("GPT Response:", result);
+
+      // Send the Base64-encoded image to GPT
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer OPEN_AI_KEY`, // Replace with your OpenAI API key
+        },
+        body: JSON.stringify({
+          model: "gpt-4",
+          messages: [
+            { role: "system", content: "You are an assistant that extracts text from images." },
+            { role: "user", content: `Extract text from this image: data:image/jpeg;base64,${base64Image}` },
+          ],
+        }),
+      });
+
+      const data = await response.json();
+      setResponseMessage(data.choices[0].message.content);
     } catch (error) {
-      console.error("Upload error:", error);
+      console.error("Error sending image to GPT:", error);
+      Alert.alert("Error", "Failed to send image to GPT.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.backText}>Back</Text>
-      </TouchableOpacity>
-
-      {photo ? (
-        <Image source={{ uri: photo.uri }} style={styles.preview} />
-      ) : (
-        <Button title="Open Camera" onPress={openCamera} />
-      )}
-
-      {photo && (
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-          <Text style={styles.submitText}>Submit</Text>
-        </TouchableOpacity>
-      )}
+      <Button title="Open Gallery" onPress={openGallery} />
+      <Button title="Open Camera" onPress={openCamera} />
+      {photo && <Image source={{ uri: photo.uri }} style={styles.image} />}
+      {photo && <Button title="Send Image to GPT" onPress={sendImageToGPT} />}
+      {loading && <ActivityIndicator size="large" color="#0000ff" />}
+      {responseMessage ? <Text style={styles.text}>{responseMessage}</Text> : null}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#e1edcd",
-  },
-  backButton: {
-    position: "absolute",
-    top: 40,
-    left: 20,
-    padding: 10,
-  },
-  backText: {
-    fontSize: 16,
-    color: "#436c1c",
-  },
-  preview: {
-    width: 300,
-    height: 400,
-    marginBottom: 20,
-  },
-  submitButton: {
-    backgroundColor: "#436c1c",
-    padding: 12,
-    borderRadius: 8,
-  },
-  submitText: {
-    color: "yellow",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
+  container: { flex: 1, justifyContent: "center", alignItems: "center" },
+  image: { width: 200, height: 200, marginTop: 20 },
+  text: { marginTop: 20, padding: 10, fontSize: 16, color: "black" },
 });
 
-export default CameraScreen;
+export default TestGallery;
