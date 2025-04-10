@@ -65,11 +65,16 @@ const TestGallery = () => {
           Authorization: `Bearer OPEN_AI_KEY`, // Replace with your OpenAI API key
         },
         body: JSON.stringify({
-          model: "gpt-4",
-          messages: [
-            { role: "system", content: "You are an assistant that extracts text from images." },
-            { role: "user", content: `Extract text from this image: data:image/jpeg;base64,${base64Image}` },
-          ],
+          model: "gpt-4o-mini",
+          messages:[
+            {"role": "user", "content": [
+                {"type": "text", "text": "Extract the following info from the image. Send only the info in json format. No other markdown or text. Food, calories, protein, fat, carbs, fiber with units. Don't put unit of particular category if not there"},
+                {"type": "image_url", "image_url": {
+                    "url": `data:image/png;base64,${base64Image}`                
+                  }
+                }
+            ]}
+        ],
         }),
       });
 
