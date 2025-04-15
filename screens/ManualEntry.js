@@ -1,20 +1,40 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Image, TouchableOpacity, StyleSheet, Vibration, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View, Text, TextInput, Image, TouchableOpacity,
+  StyleSheet, Vibration, ScrollView
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { auth, firestore } from '../firebaseConfig.js'; // Adjust path as needed
+import { collection, getDoc, doc, getFirestore } from 'firebase/firestore';
+import { app } from "../firebaseConfig.js";
 
+const db = getFirestore(app);
 
 const InputScreen = () => {
   const navigation = useNavigation();
   const [foodEntries, setFoodEntries] = useState([{ food: '', source: '' }]);
   const [error, setError] = useState("");
+  const [userDetails, setUserDetails] = useState(null);
 
-  
-  const userDetails = {
-    height: "6'1\"",
-    weight: "75 kg",
-    age: 24,
-    gender: "male"
-  };
+  useEffect(() => {
+    const fetchUserDetails = async () => {
+      try {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          const userRef = doc(db, "users", currentUser.uid ); // Create reference
+          const userDoc = await getDoc(userRef); 
+          if (userDoc.exists()) {
+            setUserDetails(userDoc.data());
+          } else {
+            console.warn('User details not found in Firestore.');
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching user details:", err);
+      }
+    };
+    fetchUserDetails();
+  }, []);
 
   const handleAddEntry = () => {
     setFoodEntries([...foodEntries, { food: '', source: '' }]);
@@ -119,7 +139,8 @@ const InputScreen = () => {
           return;
         }
   
-        const nutrients = detailsData.food.servings.serving; // Assuming first serving
+        let nutrients = detailsData.food.servings.serving; // Assuming first serving
+        if(Array.isArray(nutrients)) nutrients = nutrients[0] 
         nutritionData.push({
           food: entry.food,
           calories: nutrients.calories,

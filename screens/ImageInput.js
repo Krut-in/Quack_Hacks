@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Button, Image, StyleSheet, Alert, ActivityIndicator, Text } from "react-native";
+import { View, Button, Image, StyleSheet, Alert, ActivityIndicator, Text, TouchableOpacity, } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 
@@ -88,22 +88,42 @@ const TestGallery = () => {
     }
   };
 
+  const CustomButton = ({ title, onPress }) => (
+    <TouchableOpacity style={styles.header} onPress={onPress}>
+      <Text style={{ color: "#fff", fontSize: 18 }}>{title}</Text>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
-      <Button title="Open Gallery" onPress={openGallery} />
-      <Button title="Open Camera" onPress={openCamera} />
-      {photo && <Image source={{ uri: photo.uri }} style={styles.image} />}
-      {photo && <Button title="Send Image to GPT" onPress={sendImageToGPT} />}
-      {loading && <ActivityIndicator size="large" color="#0000ff" />}
-      {responseMessage ? <Text style={styles.text}>{responseMessage}</Text> : null}
-    </View>
+    <CustomButton title="Open Gallery" onPress={openGallery} />
+    <CustomButton title="Open Camera" onPress={openCamera} />
+    {photo && <Image source={{ uri: photo.uri }} style={styles.image} />}
+    {photo && <CustomButton title="Send Image to GPT" onPress={sendImageToGPT} />}
+    {loading && <ActivityIndicator size="large" color="#0000ff" />}
+    {responseMessage ? <Text style={styles.text}>{responseMessage}</Text> : null}
+  </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center" },
+  container: { flex: 1, backgroundColor: "#d9e8b8", justifyContent: "center", alignItems: "center" },
   image: { width: 200, height: 200, marginTop: 20 },
   text: { marginTop: 20, padding: 10, fontSize: 16, color: "black" },
+  header: {
+    fontSize: 22,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 30,
+    backgroundColor: "#617a27",
+    color: "#fff",
+    padding: 15,
+    borderRadius: 10,
+    width: "80%",
+    alignItems: "center",
+  },
 });
+
+
 
 export default TestGallery;

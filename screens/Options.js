@@ -12,7 +12,8 @@ const SelectionScreen = () => {
       <Option number="1" text="Ordered through UberEats?" onPress={() => navigation.navigate("OrdersFetch")} />
       <Option number="2" text="Upload a picture" onPress={() => navigation.navigate("ImageInput")} />
       <Option number="3" text="Enter manually" onPress={() => navigation.navigate("ManualEntry")}/>
-      <Option number="4" text="Get your monthly nutritional plan" />
+      <Option number="4" text="Your weekly nutritional intake" onPress={() => navigation.navigate("WeeklyIntake")}/>
+      <Option number="5" text="Food recommendations" onPress={() => navigation.navigate("FoodRecommendation")}/>
     </View>
   );
 };

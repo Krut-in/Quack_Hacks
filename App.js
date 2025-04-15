@@ -6,11 +6,14 @@ import ProfileScreen from "./screens/ProfileScreen";
 import OrderHistory from "./screens/OrderHistory";
 import OrdersFetch from "./screens/OrdersFetch";
 import ReportScreen from "./screens/ReportScreen";
+import WeeklyIntake from "./screens/WeeklyIntake";
 import Options from "./screens/Options";
 import ImageInput from "./screens/ImageInput";
 import ManualEntry from "./screens/ManualEntry";
 import ManualResult from "./screens/ManualResult";
 import SignUpScreen from "./screens/SignUpScreen.js";
+import FoodRecommendation from "./screens/FoodRecommendation.js"; 
+
 
 const Stack = createStackNavigator();
 
@@ -28,6 +31,8 @@ export default function App() {
         <Stack.Screen name="ImageInput" component={ImageInput} />
         <Stack.Screen name="ManualEntry" component={ManualEntry} />
         <Stack.Screen name="ManualResult" component={ManualResult} />
+        <Stack.Screen name="WeeklyIntake" component={WeeklyIntake} />
+        <Stack.Screen name="FoodRecommendation" component={FoodRecommendation} /> 
       </Stack.Navigator>
     </NavigationContainer>
   );
